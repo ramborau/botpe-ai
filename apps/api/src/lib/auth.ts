@@ -4,6 +4,7 @@ import { organization } from "better-auth/plugins";
 import { prisma } from "../config/database";
 
 export const auth = betterAuth({
+  baseURL: process.env.BASE_URL || "http://localhost:3001",
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -31,8 +32,8 @@ export const auth = betterAuth({
       },
       organizationId: {
         type: "string",
-        required: true,
-        input: true,
+        required: false,
+        input: false, // Will be set after organization creation
       },
     },
   },

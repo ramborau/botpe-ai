@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { auth } from '../lib/auth';
+import { fromNodeHeaders } from 'better-auth/node';
 import { logger } from '../config/logger';
 
 // Extend Express Request to include user
@@ -33,9 +34,9 @@ export async function requireAuth(
   next: NextFunction
 ) {
   try {
-    // Get session from Better-Auth
+    // Get session from Better-Auth using fromNodeHeaders
     const session = await auth.api.getSession({
-      headers: req.headers as any,
+      headers: fromNodeHeaders(req.headers),
     });
 
     if (!session) {
@@ -135,7 +136,7 @@ export async function optionalAuth(
 ) {
   try {
     const session = await auth.api.getSession({
-      headers: req.headers as any,
+      headers: fromNodeHeaders(req.headers),
     });
 
     if (session) {

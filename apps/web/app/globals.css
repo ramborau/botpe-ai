@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* BotPe Brand Colors */
+  --color-primary: #00c307;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #128c7e;
+  --color-secondary-foreground: #ffffff;
+  --color-dark: #075e54;
+  --color-light: #dcf8c6;
+  --color-light-2: #ece5dd;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.08);
+
+  /* Font */
+  --font-sans: 'San Francisco', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* San Francisco Font Faces */
+@font-face {
+  font-family: 'San Francisco';
+  font-weight: 400;
+  font-style: normal;
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-regular-webfont.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'San Francisco';
+  font-weight: 500;
+  font-style: normal;
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-medium-webfont.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'San Francisco';
+  font-weight: 600;
+  font-style: normal;
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-semibold-webfont.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'San Francisco';
+  font-weight: 700;
+  font-style: normal;
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-bold-webfont.woff') format('woff');
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900;
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}

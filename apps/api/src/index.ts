@@ -8,7 +8,12 @@ import { Server as SocketServer } from 'socket.io';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
 import { auth } from './lib/auth';
+import { toNodeHandler } from 'better-auth/node';
 import userRoutes from './routes/user.routes';
+import organizationRoutes from './routes/organizations';
+import whatsappAccountRoutes from './routes/whatsapp-accounts';
+import botRoutes from './routes/bots';
+import adminRoutes from './routes/admin';
 
 // Load environment variables
 dotenv.config();
@@ -25,14 +30,30 @@ const io = new SocketServer(httpServer, {
 const PORT = process.env.PORT || 3001;
 
 // ========================================
-// MIDDLEWARE
+// MIDDLEWARE - CORS FIRST
 // ========================================
 
-app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
+
+// ========================================
+// AUTH ROUTES - BEFORE express.json()!
+// ========================================
+
+// Auth routes (Better-Auth) - MUST be before express.json()
+app.all("/api/auth/*", (req, res, next) => {
+  logger.info(`Auth route matched: ${req.method} ${req.path}`);
+  next();
+}, toNodeHandler(auth));
+
+// ========================================
+// OTHER MIDDLEWARE - AFTER AUTH
+// ========================================
+
+app.use(helmet());
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -56,7 +77,7 @@ app.get('/health', async (req: Request, res: Response) => {
   try {
     // Check database connection
     await prisma.$queryRaw`SELECT 1`;
-    
+
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -73,18 +94,21 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
-// Auth routes (Better-Auth)
-app.all("/api/auth/*", (req, res) => auth.handler(req, res));
+// Import WhatsApp routes
+import whatsappRoutes from './routes/whatsapp.routes';
 
 // API Routes
 app.use('/api/users', userRoutes);
+app.use('/api/organizations', organizationRoutes);
+app.use('/api/whatsapp-accounts', whatsappAccountRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/bots', botRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Additional routes (will be added)
-// app.use('/api/bots', botRoutes);
 // app.use('/api/conversations', conversationRoutes);
 // app.use('/api/templates', templateRoutes);
 // app.use('/api/campaigns', campaignRoutes);
-// app.use('/api/whatsapp', whatsappRoutes);
 // app.use('/api/agents', agentRoutes);
 
 // ========================================
