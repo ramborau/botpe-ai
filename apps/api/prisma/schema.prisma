@@ -1,0 +1,373 @@
+// BotPe AI - Database Schema
+// PostgreSQL with Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// CORE MODELS - Organization & Users
+// ========================================
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  whatsappAccounts WhatsAppAccount[]
+  bots             Bot[]
+  conversations    Conversation[]
+  templates        Template[]
+  campaigns        Campaign[]
+  contacts         Contact[]
+  segments         Segment[]
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  passwordHash   String
+  name           String
+  role           Role         @default(AGENT)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  lastLoginAt    DateTime?
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  VIEWER
+}
+
+// ========================================
+// WHATSAPP INTEGRATION
+// ========================================
+
+model WhatsAppAccount {
+  id                   String        @id @default(uuid())
+  organizationId       String
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  wabaId               String
+  phoneNumberId        String
+  displayPhoneNumber   String
+  accessTokenEncrypted String        @db.Text
+  businessProfileName  String?
+  status               AccountStatus @default(PENDING)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  bots          Bot[]
+  conversations Conversation[]
+  templates     Template[]
+  campaigns     Campaign[]
+
+  @@unique([organizationId, phoneNumberId])
+  @@index([organizationId])
+  @@index([phoneNumberId])
+}
+
+enum AccountStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+// ========================================
+// BOT SYSTEM
+// ========================================
+
+model Bot {
+  id                String          @id @default(uuid())
+  name              String
+  description       String?
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  whatsappAccountId String
+  whatsappAccount   WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  status            BotStatus       @default(DRAFT)
+  nodes             Json            @default("[]")
+  edges             Json            @default("[]")
+  variables         Json            @default("[]")
+  entryNodeId       String?
+  personality       Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  conversations Conversation[]
+
+  @@index([organizationId])
+  @@index([whatsappAccountId])
+  @@index([status])
+}
+
+enum BotStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+// ========================================
+// CONVERSATIONS & MESSAGES
+// ========================================
+
+model Conversation {
+  id                String             @id @default(uuid())
+  organizationId    String
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  whatsappAccountId String
+  whatsappAccount   WhatsAppAccount    @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  phoneNumber       String
+  contactId         String?
+  contact           Contact?           @relation(fields: [contactId], references: [id])
+  botId             String?
+  bot               Bot?               @relation(fields: [botId], references: [id])
+  assignedToId      String?
+  status            ConversationStatus @default(OPEN)
+  contextData       Json               @default("{}")
+  unreadCount       Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  lastMessageAt     DateTime           @default(now())
+
+  messages Message[]
+
+  @@index([organizationId])
+  @@index([whatsappAccountId])
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      Direction
+  type           String
+  content        Json
+  status         MessageStatus @default(SENT)
+  waMessageId    String?       @unique
+  sentById       String?
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId])
+  @@index([waMessageId])
+  @@index([createdAt])
+}
+
+enum Direction {
+  INCOMING
+  OUTGOING
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// ========================================
+// CONTACTS
+// ========================================
+
+model Contact {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  phoneNumber    String
+  name           String?
+  email          String?
+  customFields   Json         @default("{}")
+  tags           String[]     @default([])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  conversations     Conversation[]
+  campaignRecipients CampaignRecipient[]
+
+  @@unique([organizationId, phoneNumber])
+  @@index([organizationId])
+  @@index([phoneNumber])
+}
+
+// ========================================
+// TEMPLATES
+// ========================================
+
+model Template {
+  id                String           @id @default(uuid())
+  organizationId    String
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  whatsappAccountId String
+  whatsappAccount   WhatsAppAccount  @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  name              String
+  category          TemplateCategory
+  language          String           @default("en")
+  status            TemplateStatus   @default(DRAFT)
+  components        Json
+  waTemplateId      String?
+  rejectionReason   String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  campaigns Campaign[]
+
+  @@index([organizationId])
+  @@index([whatsappAccountId])
+  @@index([status])
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ========================================
+// CAMPAIGNS
+// ========================================
+
+model Campaign {
+  id                String         @id @default(uuid())
+  organizationId    String
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  whatsappAccountId String
+  whatsappAccount   WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  templateId        String
+  template          Template       @relation(fields: [templateId], references: [id])
+  segmentId         String?
+  segment           Segment?       @relation(fields: [segmentId], references: [id])
+  name              String
+  status            CampaignStatus @default(DRAFT)
+  scheduledAt       DateTime?
+  completedAt       DateTime?
+  sentCount         Int            @default(0)
+  deliveredCount    Int            @default(0)
+  readCount         Int            @default(0)
+  failedCount       Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  recipients CampaignRecipient[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+model CampaignRecipient {
+  id               String        @id @default(uuid())
+  campaignId       String
+  campaign         Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId        String
+  contact          Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status           MessageStatus @default(SENT)
+  waMessageId      String?
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  failedReason     String?
+  createdAt        DateTime      @default(now())
+
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([status])
+}
+
+// ========================================
+// SEGMENTS
+// ========================================
+
+model Segment {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  filters        Json
+  contactCount   Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  campaigns Campaign[]
+
+  @@index([organizationId])
+}
+
+// ========================================
+// AGENT LOGS & ANALYTICS
+// ========================================
+
+model AgentLog {
+  id         String   @id @default(uuid())
+  agentName  String
+  action     String
+  input      Json
+  output     Json?
+  success    Boolean  @default(true)
+  errorMessage String?
+  latency    Int?     // milliseconds
+  createdAt  DateTime @default(now())
+
+  @@index([agentName])
+  @@index([createdAt])
+  @@index([success])
+}
+
+model AgentUsage {
+  id           String   @id @default(uuid())
+  agentName    String
+  inputTokens  Int
+  outputTokens Int
+  cost         Float
+  createdAt    DateTime @default(now())
+
+  @@index([agentName])
+  @@index([createdAt])
+}
