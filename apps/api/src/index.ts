@@ -7,6 +7,8 @@ import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
+import { auth } from './lib/auth';
+import userRoutes from './routes/user.routes';
 
 // Load environment variables
 dotenv.config();
@@ -71,8 +73,13 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
-// API Routes (will be added)
-// app.use('/api/auth', authRoutes);
+// Auth routes (Better-Auth)
+app.all("/api/auth/*", (req, res) => auth.handler(req, res));
+
+// API Routes
+app.use('/api/users', userRoutes);
+
+// Additional routes (will be added)
 // app.use('/api/bots', botRoutes);
 // app.use('/api/conversations', conversationRoutes);
 // app.use('/api/templates', templateRoutes);
